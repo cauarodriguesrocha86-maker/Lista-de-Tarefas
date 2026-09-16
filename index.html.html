@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft To-Do Pro - Ultra Criativo</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease;
+        }
+
+        /* Gradientes de Fundo Selecionáveis */
+        .theme-blue { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); }
+        .theme-sunset { background: linear-gradient(135deg, #18181b 0%, #451a03 50%, #2e1065 100%); }
+        .theme-cyber { background: linear-gradient(135deg, #09090b 0%, #022c22 50%, #0f172a 100%); }
+        .theme-aurora { background: linear-gradient(135deg, #051923 0%, #003554 50%, #006494 100%); }
+
+        .glass-card {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .task-card {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Canvas Confetti Overlay */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
+    </style>
+</head>
+<body id="app-body" class="theme-blue min-h-screen text-slate-100 flex flex-col justify-between selection:bg-blue-500 selection:text-white relative overflow-x-hidden">
+
+    <!-- Canvas para efeito de confete -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="max-w-6xl w-full mx-auto p-3 sm:p-6 my-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- PAINEL LATERAL DE CATEGORIAS E TIMER -->
+            <aside class="lg:col-span-4 space-y-4">
+                
+                <!-- Perfil & Gamificação -->
+                <div class="glass-card rounded-2xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-blue-500/30">
+                                <i class="fa-solid fa-user-astronaut"></i>
+                            </div>
+                            <div>
+                                <h2 class="font-bold text-base text-white">Central de Foco</h2>
+                                <p class="text-xs text-blue-400 font-medium" id="quote-display">"Passo a passo rumo ao objetivo."</p>
+                            </div>
+                        </div>
+                        <button id="sound-toggle" onclick="toggleAudio()" class="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 transition" title="Alternar Sons">
+                            <i id="sound-icon" class="fa-solid fa-volume-high"></i>
+                        </button>
+                    </div>
+
+                    <!-- Progresso Geral -->
+                    <div class="space-y-2 pt-2 border-t border-slate-800">
+                        <div class="flex justify-between text-xs font-semibold">
+                            <span class="text-slate-400">Progresso do Dia</span>
+                            <span id="progress-percent" class="text-blue-400">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5">
+                            <div id="progress-bar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modos & Categorias -->
+                <div class="glass-card rounded-2xl p-4 shadow-xl">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 px-3 mb-2">Listas & Modos</h3>
+                    <nav class="space-y-1">
+                        <button onclick="setFilter('all')" id="nav-all" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition bg-blue-600 text-white">
+                            <span class="flex items-center gap-3"><i class="fa-solid fa-sun text-yellow-400"></i> Meu Dia</span>
+                            <span id="badge-all" class="bg-blue-800/60 px-2 py-0.5 rounded-full text-xs">0</span>
+                        </button>
+                        <button onclick="setFilter('important')" id="nav-important" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800/60 transition">
+                            <span class="flex items-center gap-3"><i class="fa-solid fa-star text-amber-400"></i> Importantes</span>
+                            <span id="badge-important" class="bg-slate-800 px-2 py-0.5 rounded-full text-xs">0</span>
+                        </button>
+                        <button onclick="setFilter('work')" id="nav-work" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800/60 transition">
+                            <span class="flex items-center gap-3"><i class="fa-solid fa-briefcase text-purple-400"></i> Trabalho / Estudos</span>
+                            <span id="badge-work" class="bg-slate-800 px-2 py-0.5 rounded-full text-xs">0</span>
+                        </button>
+                        <button onclick="setFilter('completed')" id="nav-completed" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800/60 transition">
+                            <span class="flex items-center gap-3"><i class="fa-solid fa-check-double text-emerald-400"></i> Concluídas</span>
+                            <span id="badge-completed" class="bg-slate-800 px-2 py-0.5 rounded-full text-xs">0</span>
+                        </button>
+                    </nav>
+
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 px-3 mt-5 mb-2">Tema Visual</h3>
+                    <div class="grid grid-cols-4 gap-2 px-1">
+                        <button onclick="setTheme('theme-blue')" class="h-8 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-900 border border-slate-600 hover:scale-105 transition" title="Microsoft Blue"></button>
+                        <button onclick="setTheme('theme-sunset')" class="h-8 rounded-lg bg-gradient-to-r from-amber-700 to-purple-900 border border-slate-600 hover:scale-105 transition" title="Sunset Dusk"></button>
+                        <button onclick="setTheme('theme-cyber')" class="h-8 rounded-lg bg-gradient-to-r from-emerald-800 to-slate-900 border border-slate-600 hover:scale-105 transition" title="Cyberpunk Neon"></button>
+                        <button onclick="setTheme('theme-aurora')" class="h-8 rounded-lg bg-gradient-to-r from-cyan-700 to-blue-900 border border-slate-600 hover:scale-105 transition" title="Aurora Borealis"></button>
+                    </div>
+                </div>
+
+                <!-- Widget Pomodoro Timer -->
+                <div class="glass-card rounded-2xl p-5 shadow-xl text-center">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-stopwatch text-red-400"></i> Timer de Foco (Pomodoro)
+                        </span>
+                        <span id="pomodoro-mode-label" class="text-[10px] bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full font-semibold">Foco</span>
+                    </div>
+
+                    <div class="text-4xl font-extrabold my-3 font-mono tracking-wider text-white" id="timer-display">25:00</div>
+
+                    <div class="flex justify-center gap-2">
+                        <button onclick="toggleTimer()" id="timer-start-btn" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1">
+                            <i class="fa-solid fa-play"></i> Iniciar
+                        </button>
+                        <button onclick="resetTimer()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-xl text-xs font-semibold transition">
+                            <i class="fa-solid fa-rotate-right"></i> Reset
+                        </button>
+                    </div>
+                </div>
+
+            </aside>
+
+            <!-- ÁREA PRINCIPAL DE TAREFAS -->
+            <main class="lg:col-span-8 space-y-4">
+                
+                <!-- Cabeçalho Dinâmico -->
+                <div class="glass-card rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 id="current-category-title" class="text-2xl sm:text-3xl font-extrabold text-white flex items-center gap-3">
+                            <i class="fa-solid fa-sun text-yellow-400"></i> Meu Dia
+                        </h1>
+                        <p id="current-date-display" class="text-xs sm:text-sm text-slate-400 capitalize mt-1"></p>
+                    </div>
+                    <div class="flex items-center gap-2 self-end sm:self-auto">
+                        <div class="relative">
+                            <input type="text" id="search-input" oninput="renderTasks()" placeholder="Buscar tarefa..." class="bg-slate-800/80 border border-slate-700 text-xs text-white placeholder-slate-400 pl-8 pr-3 py-2 rounded-xl focus:outline-none focus:border-blue-500 w-36 sm:w-48 transition-all">
+                            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulário de Criação Completo -->
+                <div class="glass-card rounded-2xl p-4 shadow-xl border border-blue-500/30">
+                    <form id="add-task-form" onsubmit="handleAddTask(event)" class="space-y-3">
+                        <div class="flex gap-2">
+                            <input 
+                                type="text" 
+                                id="task-text-input" 
+                                placeholder="O que você precisa fazer hoje?" 
+                                class="flex-grow bg-slate-800/90 text-white placeholder-slate-400 px-4 py-3 rounded-xl border border-slate-700 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 text-sm font-medium transition"
+                                required
+                            >
+                            <button type="submit" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg shadow-blue-600/30 transition flex items-center gap-2 active:scale-95">
+                                <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Adicionar</span>
+                            </button>
+                        </div>
+
+                        <!-- Opções Adicionais (Prioridade, Categoria, Data) -->
+                        <div class="flex flex-wrap gap-2 pt-1 text-xs">
+                            <!-- Prioridade -->
+                            <select id="task-priority-select" class="bg-slate-800 text-slate-300 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500">
+                                <option value="low">🟢 Prioridade Baixa</option>
+                                <option value="medium" selected>🟡 Prioridade Média</option>
+                                <option value="high">🔴 Prioridade Alta</option>
+                            </select>
+
+                            <!-- Categoria -->
+                            <select id="task-category-select" class="bg-slate-800 text-slate-300 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500">
+                                <option value="general">📁 Geral</option>
+                                <option value="work">💼 Trabalho</option>
+                                <option value="personal">👤 Pessoal</option>
+                            </select>
+
+                            <!-- Data de Vencimento -->
+                            <input type="date" id="task-date-input" class="bg-slate-800 text-slate-300 border border-slate-700 rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-500">
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Lista de Tarefas -->
+                <div class="space-y-3">
+                    <ul id="tasks-container" class="space-y-2.5 min-h-[250px]">
+                        <!-- Tarefas injetadas via JS -->
+                    </ul>
+
+                    <!-- Estado Vazio -->
+                    <div id="empty-state-card" class="glass-card rounded-2xl p-10 text-center hidden">
+                        <div class="w-16 h-16 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-blue-500/20">
+                            <i class="fa-solid fa-rocket text-2xl"></i>
+                        </div>
+                        <h3 class="font-bold text-white text-base">Nenhuma tarefa encontrada</h3>
+                        <p class="text-xs text-slate-400 mt-1">Aproveite seu tempo livre ou crie uma nova tarefa acima!</p>
+                    </div>
+                </div>
+
+                <!-- Ações de Rodapé -->
+                <div class="flex items-center justify-between text-xs text-slate-400 px-2 pt-2">
+                    <span id="footer-summary-text">0 tarefas pendentes</span>
+                    <button onclick="clearCompletedTasks()" id="clear-completed-btn" class="hover:text-red-400 transition hidden flex items-center gap-1">
+                        <i class="fa-regular fa-trash-can"></i> Limpar concluídas
+                    </button>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal de Detalhes / Edição de Subtarefas -->
+    <div id="subtask-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-700 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 id="modal-task-title" class="font-bold text-lg text-white">Subtarefas</h3>
+                <button onclick="closeSubtaskModal()" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Formulário para nova subtarefa -->
+            <div class="flex gap-2">
+                <input type="text" id="subtask-input" placeholder="Adicionar passo/subtarefa..." class="flex-grow bg-slate-800 text-sm text-white px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:border-blue-500">
+                <button onclick="handleAddSubtask()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-bold">Add</button>
+            </div>
+
+            <!-- Lista de Subtarefas -->
+            <ul id="subtasks-list" class="space-y-2 max-h-48 overflow-y-auto">
+                <!-- Injetado dinamicamente -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- JavaScript Lógica Principal -->
+    <script>
+        // =======================================================
+        // ESTADO GLOBAL DA APLICAÇÃO
+        // =======================================================
+        let tasks = JSON.parse(localStorage.getItem('mstd_pro_tasks')) || [
+            {
+                id: 1,
+                text: "Estudar para a prova de Programação Web",
+                completed: false,
+                important: true,
+                category: "work",
+                priority: "high",
+                dueDate: "",
+                subtasks: [{ id: 101, text: "Revisar HTML/CSS", completed: true }, { id: 102, text: "Praticar JS localStore", completed: false }]
+            },
+            {
+                id: 2,
+                text: "Publicar projeto no GitHub Pages",
+                completed: false,
+                important: true,
+                category: "work",
+                priority: "high",
+                dueDate: "",
+                subtasks: []
+            }
+        ];
+
+        let currentFilter = 'all'; // 'all', 'important', 'work', 'completed'
+        let currentTheme = localStorage.getItem('mstd_theme') || 'theme-blue';
+        let audioEnabled = true;
+        let selectedTaskIdForModal = null;
+
+        // Timer Pomodoro
+        let timerSeconds = 25 * 60;
+        let timerInterval = null;
+        let isTimerRunning = false;
+
+        // Frases Motivacionais
+        const quotes = [
+            '"Pequenos passos diários levam a grandes conquistas."',
+            '"Mantenha o foco e termine o que começou!"',
+            '"A consistência é a chave do sucesso."',
+            '"Sua mente limpa gera máxima produtividade."'
+        ];
+
+        // =======================================================
+        // AUDIO SINTETIZADO (Web Audio API - Sem URLs externas)
+        // =======================================================
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function playSound(type) {
+            if (!audioEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new AudioCtx();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'complete') {
+                    // Som de sucesso (acorde maior)
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.1); // E5
+                    osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.2); // G5
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'add') {
+                    // Pop suave
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(600, now + 0.08);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'delete') {
+                    // Tom descendente
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(150, now + 0.12);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                }
+            } catch (e) {
+                console.log("Audio API não permitida sem interação inicial.");
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const icon = document.getElementById('sound-icon');
+            icon.className = audioEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark text-red-400';
+        }
+
+        // =======================================================
+        // INICIALIZAÇÃO
+        // =======================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            setTheme(currentTheme);
+            exibirDataEFrase();
+            renderTasks();
+        });
+
+        function saveState() {
+            localStorage.setItem('mstd_pro_tasks', JSON.stringify(tasks));
+            localStorage.setItem('mstd_theme', currentTheme);
+        }
+
+        function setTheme(theme) {
+            currentTheme = theme;
+            document.getElementById('app-body').className = `${theme} min-h-screen text-slate-100 flex flex-col justify-between selection:bg-blue-500 selection:text-white relative overflow-x-hidden`;
+            saveState();
+        }
+
+        function exibirDataEFrase() {
+            const opcoes = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            document.getElementById('current-date-display').textContent = new Date().toLocaleDateString('pt-BR', opcoes);
+            
+            // Escolhe frase aleatória
+            const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+            document.getElementById('quote-display').textContent = randomQuote;
+        }
+
+        // =======================================================
+        // GERENCIAMENTO DE TAREFAS (CRUD)
+        // =======================================================
+        function handleAddTask(e) {
+            e.preventDefault();
+            const textInput = document.getElementById('task-text-input');
+            const prioritySelect = document.getElementById('task-priority-select');
+            const categorySelect = document.getElementById('task-category-select');
+            const dateInput = document.getElementById('task-date-input');
+
+            const text = textInput.value.trim();
+            if (!text) return;
+
+            const newTask = {
+                id: Date.now(),
+                text: text,
+                completed: false,
+                important: currentFilter === 'important',
+                category: categorySelect.value,
+                priority: prioritySelect.value,
+                dueDate: dateInput.value,
+                subtasks: []
+            };
+
+            tasks.unshift(newTask);
+            playSound('add');
+            saveState();
+            renderTasks();
+
+            textInput.value = '';
+            dateInput.value = '';
+        }
+
+        function toggleTaskComplete(id) {
+            tasks = tasks.map(t => {
+                if (t.id === id) {
+                    const willComplete = !t.completed;
+                    if (willComplete) {
+                        playSound('complete');
+                        triggerConfetti();
+                    }
+                    return { ...t, completed: willComplete };
+                }
+                return t;
+            });
+            saveState();
+            renderTasks();
+        }
+
+        function toggleTaskImportant(id, event) {
+            event.stopPropagation();
+            tasks = tasks.map(t => t.id === id ? { ...t, important: !t.important } : t);
+            saveState();
+            renderTasks();
+        }
+
+        function deleteTask(id, event) {
+            event.stopPropagation();
+            tasks = tasks.filter(t => t.id !== id);
+            playSound('delete');
+            saveState();
+            renderTasks();
+        }
+
+        function clearCompletedTasks() {
+            tasks = tasks.filter(t => !t.completed);
+            playSound('delete');
+            saveState();
+            renderTasks();
+        }
+
+        // =======================================================
+        // FILTROS E RENDERIZAÇÃO DA UI
+        // =======================================================
+        function setFilter(filter) {
+            currentFilter = filter;
+
+            // Atualiza botões de navegação
+            const navs = ['all', 'important', 'work', 'completed'];
+            navs.forEach(n => {
+                const btn = document.getElementById(`nav-${n}`);
+                if (n === filter) {
+                    btn.className = "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition bg-blue-600 text-white shadow-lg shadow-blue-600/30";
+                } else {
+                    btn.className = "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800/60 transition";
+                }
+            });
+
+            // Atualiza Título
+            const titles = {
+                'all': '<i class="fa-solid fa-sun text-yellow-400"></i> Meu Dia',
+                'important': '<i class="fa-solid fa-star text-amber-400"></i> Tarefas Importantes',
+                'work': '<i class="fa-solid fa-briefcase text-purple-400"></i> Trabalho / Estudos',
+                'completed': '<i class="fa-solid fa-check-double text-emerald-400"></i> Tarefas Concluídas'
+            };
+            document.getElementById('current-category-title').innerHTML = titles[filter];
+
+            renderTasks();
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('tasks-container');
+            const emptyState = document.getElementById('empty-state-card');
+            const searchKeyword = document.getElementById('search-input').value.toLowerCase();
+
+            container.innerHTML = '';
+
+            // Filtragem
+            let filtered = tasks.filter(t => {
+                if (searchKeyword && !t.text.toLowerCase().includes(searchKeyword)) return false;
+
+                if (currentFilter === 'important') return t.important && !t.completed;
+                if (currentFilter === 'work') return t.category === 'work' && !t.completed;
+                if (currentFilter === 'completed') return t.completed;
+                return !t.completed; // 'all' mostra as pendentes por padrão
+            });
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+
+                filtered.forEach(task => {
+                    const li = document.createElement('li');
+                    li.className = `task-card glass-card rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-slate-800 ${
+                        task.completed ? 'opacity-50' : ''
+                    }`;
+
+                    // Badge de prioridade
+                    const priorityBadges = {
+                        'high': '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">Alta</span>',
+                        'medium': '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Média</span>',
+                        'low': '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Baixa</span>'
+                    };
+
+                    const completedSubtasks = task.subtasks.filter(s => s.completed).length;
+                    const subtaskBadge = task.subtasks.length > 0 
+                        ? `<span class="text-[11px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded-lg flex items-center gap-1"><i class="fa-solid fa-list-check"></i> ${completedSubtasks}/${task.subtasks.length}</span>` 
+                        : '';
+
+                    li.innerHTML = `
+                        <div class="flex items-center gap-3.5 flex-grow cursor-pointer" onclick="toggleTaskComplete(${task.id})">
+                            <button type="button" class="w-6 h-6 rounded-full border-2 flex-shrink-0 ${
+                                task.completed ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-500 hover:border-blue-400'
+                            } flex items-center justify-center transition">
+                                ${task.completed ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+                            </button>
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-sm font-semibold ${task.completed ? 'line-through text-slate-400' : 'text-white'}">${escaparHtml(task.text)}</span>
+                                    ${priorityBadges[task.priority] || ''}
+                                </div>
+                                <div class="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                                    ${task.dueDate ? `<span><i class="fa-regular fa-calendar text-blue-400 mr-1"></i>${task.dueDate}</span>` : ''}
+                                    ${subtaskBadge}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 self-end sm:self-auto">
+                            <!-- Botão Subtarefas -->
+                            <button onclick="openSubtaskModal(${task.id}, event)" class="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-xl transition" title="Gerenciar Subtarefas">
+                                <i class="fa-solid fa-bars-staggered text-sm"></i>
+                            </button>
+
+                            <!-- Estrela Importante -->
+                            <button onclick="toggleTaskImportant(${task.id}, event)" class="p-2 ${task.important ? 'text-amber-400' : 'text-slate-500 hover:text-amber-400'} hover:bg-slate-800 rounded-xl transition" title="Marcar como importante">
+                                <i class="${task.important ? 'fa-solid' : 'fa-regular'} fa-star text-sm"></i>
+                            </button>
+
+                            <!-- Excluir -->
+                            <button onclick="deleteTask(${task.id}, event)" class="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition" title="Excluir">
+                                <i class="fa-regular fa-trash-can text-sm"></i>
+                            </button>
+                        </div>
+                    `;
+
+                    container.appendChild(li);
+                });
+            }
+
+            atualizarEstatisticas();
+        }
+
+        function atualizarEstatisticas() {
+            const total = tasks.length;
+            const concluidas = tasks.filter(t => t.completed).length;
+            const pendentes = total - concluidas;
+
+            // Badges laterais
+            document.getElementById('badge-all').textContent = tasks.filter(t => !t.completed).length;
+            document.getElementById('badge-important').textContent = tasks.filter(t => t.important && !t.completed).length;
+            document.getElementById('badge-work').textContent = tasks.filter(t => t.category === 'work' && !t.completed).length;
+            document.getElementById('badge-completed').textContent = concluidas;
+
+            // Barra de Progresso
+            const percent = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+            document.getElementById('progress-percent').textContent = `${percent}%`;
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+
+            // Rodapé
+            document.getElementById('footer-summary-text').textContent = `${pendentes} tarefas pendentes`;
+            
+            const clearBtn = document.getElementById('clear-completed-btn');
+            if (concluidas > 0) clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
+        }
+
+        // =======================================================
+        // MODAL DE SUBTAREFAS
+        // =======================================================
+        function openSubtaskModal(id, event) {
+            event.stopPropagation();
+            selectedTaskIdForModal = id;
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            document.getElementById('modal-task-title').textContent = task.text;
+            renderSubtasks();
+            document.getElementById('subtask-modal').classList.remove('hidden');
+        }
+
+        function closeSubtaskModal() {
+            document.getElementById('subtask-modal').classList.add('hidden');
+            selectedTaskIdForModal = null;
+        }
+
+        function handleAddSubtask() {
+            const input = document.getElementById('subtask-input');
+            const text = input.value.trim();
+            if (!text || !selectedTaskIdForModal) return;
+
+            tasks = tasks.map(t => {
+                if (t.id === selectedTaskIdForModal) {
+                    return {
+                        ...t,
+                        subtasks: [...t.subtasks, { id: Date.now(), text: text, completed: false }]
+                    };
+                }
+                return t;
+            });
+
+            input.value = '';
+            saveState();
+            renderSubtasks();
+            renderTasks();
+        }
+
+        function toggleSubtask(subtaskId) {
+            tasks = tasks.map(t => {
+                if (t.id === selectedTaskIdForModal) {
+                    const newSubtasks = t.subtasks.map(s => s.id === subtaskId ? { ...s, completed: !s.completed } : s);
+                    return { ...t, subtasks: newSubtasks };
+                }
+                return t;
+            });
+            saveState();
+            renderSubtasks();
+            renderTasks();
+        }
+
+        function renderSubtasks() {
+            const list = document.getElementById('subtasks-list');
+            list.innerHTML = '';
+            const task = tasks.find(t => t.id === selectedTaskIdForModal);
+            if (!task) return;
+
+            task.subtasks.forEach(sub => {
+                const li = document.createElement('li');
+                li.className = "flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-slate-700 text-xs";
+                li.innerHTML = `
+                    <div class="flex items-center gap-2 cursor-pointer" onclick="toggleSubtask(${sub.id})">
+                        <input type="checkbox" ${sub.completed ? 'checked' : ''} class="rounded border-slate-600">
+                        <span class="${sub.completed ? 'line-through text-slate-500' : 'text-slate-200'}">${escaparHtml(sub.text)}</span>
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        // =======================================================
+        // POMODORO TIMER
+        // =======================================================
+        function updateTimerDisplay() {
+            const mins = Math.floor(timerSeconds / 60);
+            const secs = timerSeconds % 60;
+            document.getElementById('timer-display').textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function toggleTimer() {
+            const btn = document.getElementById('timer-start-btn');
+            if (isTimerRunning) {
+                clearInterval(timerInterval);
+                isTimerRunning = false;
+                btn.innerHTML = `<i class="fa-solid fa-play"></i> Iniciar`;
+                btn.className = "bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1";
+            } else {
+                isTimerRunning = true;
+                btn.innerHTML = `<i class="fa-solid fa-pause"></i> Pausar`;
+                btn.className = "bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1";
+
+                timerInterval = setInterval(() => {
+                    if (timerSeconds > 0) {
+                        timerSeconds--;
+                        updateTimerDisplay();
+                    } else {
+                        clearInterval(timerInterval);
+                        isTimerRunning = false;
+                        playSound('complete');
+                        triggerConfetti();
+                        alert("🎉 Tempo de foco concluído! Hora de um breve descanso.");
+                        resetTimer();
+                    }
+                }, 1000);
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            timerSeconds = 25 * 60;
+            updateTimerDisplay();
+            const btn = document.getElementById('timer-start-btn');
+            btn.innerHTML = `<i class="fa-solid fa-play"></i> Iniciar`;
+            btn.className = "bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1";
+        }
+
+        // =======================================================
+        // EFEITO CELEBRAÇÃO CONFETE (CANVAS)
+        // =======================================================
+        function triggerConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ['#3b82f6', '#6366f1', '#ec4899', '#10b981', '#f59e0b'];
+
+            for (let i = 0; i < 60; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.5) * 12 - 3,
+                    size: Math.random() * 6 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    life: 100
+                });
+            }
+
+            function animateConfetti() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let alive = false;
+
+                particles.forEach(p => {
+                    if (p.life > 0) {
+                        alive = true;
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += 0.2; // gravidade
+                        p.life -= 2;
+
+                        ctx.fillStyle = p.color;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
+                if (alive) requestAnimationFrame(animateConfetti);
+            }
+
+            animateConfetti();
+        }
+
+        function escaparHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
